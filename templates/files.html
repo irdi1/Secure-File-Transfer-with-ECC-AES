@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Received Files</h5>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Sender</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for file in files %}
+                <tr>
+                    <td>{{ file.filename }}</td>
+                    <td>{{ file.sender.username }}</td>
+                    <td>
+                        <a class="btn btn-primary" href="{{ url_for('download', file_id=file.id) }}">Download Decrypted</a>
+                        <a class="btn btn-secondary" href="{{ url_for('download_encrypted', file_id=file.id) }}">Download Encrypted</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
