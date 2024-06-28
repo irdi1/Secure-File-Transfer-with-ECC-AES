@@ -1,4 +1,3 @@
-import re
 from flask import render_template, url_for, flash, redirect, request, send_file, session
 from app import app, db, bcrypt
 from models import User, File
@@ -10,6 +9,7 @@ from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Hash import SHA256
 import os
 import io
+import re
 
 # Password validation regex
 PASSWORD_REGEX = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$')
@@ -95,10 +95,7 @@ def login():
         user = User.query.filter_by(email=email).first()
         if user and bcrypt.check_password_hash(user.password, password):
             login_user(user, remember=True)
-            # Decrypt private key for use in the session
-            decrypted_private_key = decrypt_private_key(user.encrypted_private_key, password)
-            # Store decrypted private key in the session
-            session['private_key'] = decrypted_private_key
+            flash('Login Successful!', 'success')
             return redirect(url_for('home'))
         else:
             flash('Login Unsuccessful. Please check email and password', 'danger')
@@ -134,23 +131,45 @@ def files():
     received_files = File.query.filter_by(recipient_id=current_user.id).all()
     return render_template('files.html', files=received_files)
 
-@app.route("/download/<int:file_id>")
+@app.route("/download/<int:file_id>", methods=['GET', 'POST'])
 @login_required
 def download(file_id):
-    file_data = File.query.get_or_404(file_id)
-    if file_data.recipient_id != current_user.id:
-        flash('You do not have permission to download this file.', 'danger')
-        return redirect(url_for('home'))
+    if request.method == 'GET':
+        return render_template('password_prompt.html', file_id=file_id)
 
-    private_key = ECC.import_key(session['private_key'])
-    ephemeral_public_key_bytes = file_data.data[:91]  # DER-encoded ECC public key is 91 bytes for P-256
-    nonce = file_data.data[91:107]
-    ciphertext = file_data.data[107:-16]
-    tag = file_data.data[-16:]
+    if request.method == 'POST':
+        password = request.form['password']
+        file_data = File.query.get_or_404(file_id)
+        if file_data.recipient_id != current_user.id:
+            flash('You do not have permission to download this file.', 'danger')
+            return redirect(url_for('home'))
 
-    decrypted_data = decrypt_ecc(private_key, ephemeral_public_key_bytes, nonce, ciphertext, tag)
-    return send_file(io.BytesIO(decrypted_data), download_name=file_data.filename, as_attachment=True)
+        # Fetch the encrypted private key from the database
+        user = User.query.get(current_user.id)
+        encrypted_private_key = user.encrypted_private_key
+        
+        try:
+            # Decrypt the private key using the provided password
+            decrypted_private_key = decrypt_private_key(encrypted_private_key, password)
+        except ValueError:
+            flash('Invalid password. Please try again.', 'danger')
+            return redirect(url_for('download', file_id=file_id))
 
+        private_key = ECC.import_key(decrypted_private_key)
+
+        ephemeral_public_key_bytes = file_data.data[:91]  # DER-encoded ECC public key is 91 bytes for P-256
+        nonce = file_data.data[91:107]
+        ciphertext = file_data.data[107:-16]
+        tag = file_data.data[-16:]
+
+        decrypted_data = decrypt_ecc(private_key, ephemeral_public_key_bytes, nonce, ciphertext, tag)
+        
+        # Send the decrypted file data directly
+        
+        response = send_file(io.BytesIO(decrypted_data), download_name=file_data.filename, as_attachment=True)
+        response.headers["Refresh"] = "0; url=" + url_for('files')
+        return response
+    
 @app.route("/download_encrypted/<int:file_id>")
 @login_required
 def download_encrypted(file_id):
