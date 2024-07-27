@@ -1,3 +1,5 @@
+# Secure File Transfer with ECC & AES
+
 The Secure File Exchange application is a web-based platform that is designed to facilitate the 
 secure exchange of files between system users. It uses the Elliptic Curve Cryptography (ECC) 
 algorithm for secure key exchange and Advanced Encryption Standard (AES) for encryption and 
