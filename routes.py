@@ -20,7 +20,7 @@ def encrypt_private_key(private_key, password):
     key = PBKDF2(password, salt, dkLen=32)  # Derive a key from the password and salt
     cipher = AES.new(key, AES.MODE_EAX)  # Create a new AES cipher
     ciphertext, tag = cipher.encrypt_and_digest(private_key.encode('utf-8'))  # Encrypt the private key
-    return salt + cipher.nonce + tag + ciphertext  # Return the combined encrypted data
+    return salt + cipher.nonce + tag + ciphertext  
 
 # Function to decrypt the private key with the user's password
 def decrypt_private_key(encrypted_private_key, password):
@@ -31,7 +31,7 @@ def decrypt_private_key(encrypted_private_key, password):
     key = PBKDF2(password, salt, dkLen=32)  # Derive the key from the password and salt
     cipher = AES.new(key, AES.MODE_EAX, nonce=nonce)  # Create a new AES cipher with the nonce
     private_key = cipher.decrypt_and_verify(ciphertext, tag)  # Decrypt and verify the private key
-    return private_key.decode('utf-8')  # Return the decrypted private key
+    return private_key.decode('utf-8')  
 
 # Function to encrypt data using ECC public key
 def encrypt_ecc(public_key, data):
@@ -41,7 +41,7 @@ def encrypt_ecc(public_key, data):
     nonce = get_random_bytes(16)  # Generate a random nonce
     cipher = AES.new(shared_key, AES.MODE_EAX, nonce=nonce)  # Create a new AES cipher with the nonce
     ciphertext, tag = cipher.encrypt_and_digest(data)  # Encrypt the data
-    return ephemeral_key.public_key().export_key(format='DER'), nonce, ciphertext, tag  # Return the encrypted data
+    return ephemeral_key.public_key().export_key(format='DER'), nonce, ciphertext, tag  
 
 # Function to decrypt data using ECC private key
 def decrypt_ecc(private_key, ephemeral_public_key_bytes, nonce, ciphertext, tag):
